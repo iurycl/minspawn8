@@ -46,6 +46,22 @@ public final class Minspawn8Config {
         public int x2, y2, z2;
         public double percentHostile = 100.0;
         public double percentNonHostile = 100.0;
+        /** Entity type ids (e.g. "minecraft:zombie") allowed to spawn naturally inside; empty = no restriction. */
+        public List<String> allowedMobs = new ArrayList<>();
+        /**
+         * Strict mode: besides natural spawns, every mob (and every non-vanilla entity such as a corpse
+         * from another mod) that is not on the list is refused when it is added to the level in here.
+         */
+        public boolean strict = false;
+
+        /**
+         * True if the position is inside the selected square on X/Z, at any height. The two clicked
+         * blocks usually sit at the same Y (e.g. both on the floor), so using Y would make the box
+         * one block tall and let almost every spawn escape the mob list.
+         */
+        boolean containsColumn(BlockPos pos) {
+            return pos.getX() >= Math.min(x1, x2) && pos.getX() <= Math.max(x1, x2)                    && pos.getZ() >= Math.min(z1, z2) && pos.getZ() <= Math.max(z1, z2);
+        }
 
         /** True if the chunk's X/Z column overlaps the region's own (inner) selection. */
         boolean chunkInInner(int chunkMinX, int chunkMaxX, int chunkMinZ, int chunkMaxZ) {
@@ -82,6 +98,9 @@ public final class Minspawn8Config {
                         int maxId = 0;
                         for (Region region : loaded.regions) {
                             maxId = Math.max(maxId, region.id);
+                            if (region.allowedMobs == null) {
+                                region.allowedMobs = new ArrayList<>();
+                            }
                         }
                         NEXT_ID.set(maxId + 1);
                         return loaded;
@@ -162,6 +181,106 @@ public final class Minspawn8Config {
             }
         }
         return false;
+    }
+
+    /** Returns null if the region does not exist, otherwise a copy of its allowed-mob list. */
+    public static synchronized List<String> getAllowedMobs(int id) {
+        for (Region region : data.regions) {
+            if (region.id == id) {
+                return new ArrayList<>(region.allowedMobs);
+            }
+        }
+        return null;
+    }
+
+    /** @return false if the region does not exist; true otherwise (also when the mob was already listed). */
+    public static synchronized boolean addAllowedMob(int id, String mobId) {
+        for (Region region : data.regions) {
+            if (region.id == id) {
+                if (!region.allowedMobs.contains(mobId)) {
+                    region.allowedMobs.add(mobId);
+                    save();
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** @return 1 if removed, 0 if the mob was not in the list, -1 if the region does not exist. */
+    public static synchronized int removeAllowedMob(int id, String mobId) {
+        for (Region region : data.regions) {
+            if (region.id == id) {
+                boolean removed = region.allowedMobs.remove(mobId);
+                if (removed) {
+                    save();
+                }
+                return removed ? 1 : 0;
+            }
+        }
+        return -1;
+    }
+
+    public static synchronized boolean clearAllowedMobs(int id) {
+        for (Region region : data.regions) {
+            if (region.id == id) {
+                if (!region.allowedMobs.isEmpty()) {
+                    region.allowedMobs.clear();
+                    save();
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** @return false if the region does not exist. */
+    public static synchronized boolean setRegionStrict(int id, boolean strict) {
+        for (Region region : data.regions) {
+            if (region.id == id) {
+                region.strict = strict;
+                save();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Strict mode check. True if some strict region covers the position and none of the strict regions
+     * covering it lists the entity.
+     */
+    public static synchronized boolean isBlockedByStrictRegion(String dimensionKey, BlockPos pos, String entityId) {
+        boolean restricted = false;
+        for (Region region : data.regions) {
+            if (!region.strict || !region.dimension.equals(dimensionKey) || !region.containsColumn(pos)) {
+                continue;
+            }
+            restricted = true;
+            if (region.allowedMobs.contains(entityId)) {
+                return false;
+            }
+        }
+        return restricted;
+    }
+
+    /**
+     * Natural-spawn whitelist. Looks at every region whose box contains the position and that has a
+     * non-empty mob list: if there is none the spawn is unrestricted; otherwise the mob must be in
+     * the list of at least one of them.
+     */
+    public static synchronized boolean isMobAllowedAt(String dimensionKey, BlockPos pos, String mobId) {
+        boolean restricted = false;
+        for (Region region : data.regions) {
+            if (region.allowedMobs.isEmpty() || !region.dimension.equals(dimensionKey) || !region.containsColumn(pos)) {
+                continue;
+            }
+            restricted = true;
+            if (region.allowedMobs.contains(mobId)) {
+                return true;
+            }
+        }
+        return !restricted;
     }
 
     public static synchronized boolean removeRegion(int id) {
