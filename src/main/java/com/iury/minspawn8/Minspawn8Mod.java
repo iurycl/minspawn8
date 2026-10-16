@@ -1,6 +1,7 @@
 package com.iury.minspawn8;
 
 import com.iury.minspawn8.command.Minspawn8Commands;
+import com.iury.minspawn8.event.MobWhitelistEvents;
 import com.iury.minspawn8.event.RegionWandEvents;
 import com.iury.minspawn8.item.Minspawn8Items;
 import net.neoforged.bus.api.IEventBus;
@@ -8,6 +9,8 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.neoforged.neoforge.event.entity.living.MobSpawnEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 
 @Mod(Minspawn8Mod.MODID)
@@ -20,5 +23,8 @@ public class Minspawn8Mod {
 
         NeoForge.EVENT_BUS.addListener(RegisterCommandsEvent.class, Minspawn8Commands::onRegisterCommands);
         NeoForge.EVENT_BUS.addListener(PlayerInteractEvent.RightClickBlock.class, RegionWandEvents::onRightClickBlock);
+        NeoForge.EVENT_BUS.addListener(PlayerInteractEvent.RightClickItem.class, RegionWandEvents::onRightClickItem);
+        NeoForge.EVENT_BUS.addListener(MobSpawnEvent.PositionCheck.class, MobWhitelistEvents::onPositionCheck);
+        NeoForge.EVENT_BUS.addListener(EntityJoinLevelEvent.class, MobWhitelistEvents::onEntityJoin);
     }
 }

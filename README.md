@@ -37,6 +37,14 @@ Sobe um servidor de teste em `run/` usando o mod compilado (ctrl+C para parar).
   - `/minspawn8 region percent <id> hostile <percentual>` (mobs hostis, ex: zumbis, esqueletos, creepers)
   - `/minspawn8 region percent <id> nonhostile <percentual>` (mobs não-hostis, ex: vacas, porcos, galinhas)
 
+## Menu (GUI)
+
+Tudo também pode ser feito por um menu estilo baú: `/minspawn8 gui` ou **shift + botão direito** com a pena (operador, nível 2).
+
+![Lista de regiões](docs/gui-regions.png)
+![Editor da região](docs/gui-region.png)
+![Seletor de mobs](docs/gui-mob-picker.png)
+
 ## Comandos (requer permissão de operador, nível 2)
 
 - `/minspawn8` ou `/minspawn8 help` — mostra a lista de comandos disponíveis.
@@ -47,6 +55,21 @@ Sobe um servidor de teste em `run/` usando o mod compilado (ctrl+C para parar).
 - `/minspawn8 region percent <id>` — mostra os percentuais atuais de uma região.
 - `/minspawn8 region percent <id> hostile|nonhostile <percentual>` — define a taxa de spawn da região para aquele grupo (100 = vanilla).
 - `/minspawn8 region remove <id>` — remove uma região.
+- `/minspawn8 region mobs <id> [list]` — mostra a lista de mobs permitidos na região (lista vazia = todos os mobs).
+- `/minspawn8 region mobs <id> add <mob>` — adiciona um mob à lista (com autocomplete; ex: `minecraft:zombie`).
+- `/minspawn8 region mobs <id> remove <mob>` — tira um mob da lista.
+- `/minspawn8 region mobs <id> clear` — limpa a lista (todos os mobs voltam a nascer).
+- `/minspawn8 region strict <id> [true|false]` — liga/desliga o modo estrito da região (veja abaixo).
+
+## Lista de mobs por região
+
+Por padrão a lista de uma região é vazia e nada muda. Assim que você adiciona pelo menos um mob, **só os mobs da lista podem nascer naturalmente dentro daquele quadrado** (o quadrado selecionado, em qualquer altura: só o X/Z dos dois blocos clicados conta); qualquer outro é recusado antes de aparecer. Se duas regiões se sobrepõem, vale a união das listas.
+
+Importante: a lista **filtra** o spawn natural, não força um mob a aparecer. O mob ainda precisa poder nascer ali pelas regras normais do jogo (bioma, luz, bloco do chão). Por padrão só vale para spawn natural (não afeta spawners, ovos, comandos nem mobs que já existem).
+
+### Modo estrito
+
+Com `/minspawn8 region strict <id> true` (ou a alavanca na tela da região do `/minspawn8 gui`), a região passa a recusar **qualquer** mob fora da lista, não só o spawn natural: ovos de spawn, `/summon`, spawners e entidades criadas por outros mods (ex.: *corpses* quando um mob morre) também são bloqueados dentro do quadrado. Lista vazia + modo estrito = nenhum mob entra. Itens no chão, orbs de XP, projéteis, veículos, quadros, armor stands e jogadores nunca são bloqueados, e entidades que já estavam salvas no mundo não são removidas.
 
 ## Como funciona a zona de compensação
 

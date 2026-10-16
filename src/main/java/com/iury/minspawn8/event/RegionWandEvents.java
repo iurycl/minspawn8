@@ -1,6 +1,7 @@
 package com.iury.minspawn8.event;
 
 import com.iury.minspawn8.config.Minspawn8Config;
+import com.iury.minspawn8.gui.Minspawn8Menu;
 import com.iury.minspawn8.item.Minspawn8Items;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -29,6 +30,15 @@ public final class RegionWandEvents {
     private RegionWandEvents() {
     }
 
+    /** Shift + right-click in the air with the feather also opens the admin menu. */
+    public static void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
+        if (event.getEntity() instanceof ServerPlayer serverPlayer
+                && event.getItemStack().is(Minspawn8Items.SPAWN_FEATHER.get())
+                && serverPlayer.isShiftKeyDown() && serverPlayer.hasPermissions(2)) {
+            Minspawn8Menu.open(serverPlayer);
+        }
+    }
+
     public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
         Player player = event.getEntity();
         ItemStack stack = event.getItemStack();
@@ -39,6 +49,11 @@ public final class RegionWandEvents {
         }
 
         event.setCanceled(true);
+
+        if (serverPlayer.isShiftKeyDown() && serverPlayer.hasPermissions(2)) {
+            Minspawn8Menu.open(serverPlayer);
+            return;
+        }
 
         ServerLevel level = (ServerLevel) event.getLevel();
         ResourceLocation dimension = level.dimension().location();
