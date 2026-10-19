@@ -53,13 +53,23 @@ Tudo também pode ser feito por um menu estilo baú: `/minspawn8 gui` ou **shift
 - `/minspawn8 distance nonhostile <blocos>` — define a distância mínima de spawn para mobs não-hostis (0–128).
 - `/minspawn8 region list` — lista todas as regiões marcadas (com os dois percentuais).
 - `/minspawn8 region percent <id>` — mostra os percentuais atuais de uma região.
-- `/minspawn8 region percent <id> hostile|nonhostile <percentual>` — define a taxa de spawn da região para aquele grupo (100 = vanilla).
+- `/minspawn8 region percent <id> hostile|nonhostile|misc <percentual>` — define a taxa da região para aquele grupo (100 = vanilla). `misc` é a produção de golems de ferro feita por aldeões (veja abaixo).
 - `/minspawn8 region remove <id>` — remove uma região.
 - `/minspawn8 region mobs <id> [list]` — mostra a lista de mobs permitidos na região (lista vazia = todos os mobs).
 - `/minspawn8 region mobs <id> add <mob>` — adiciona um mob à lista (com autocomplete; ex: `minecraft:zombie`).
 - `/minspawn8 region mobs <id> remove <mob>` — tira um mob da lista.
 - `/minspawn8 region mobs <id> clear` — limpa a lista (todos os mobs voltam a nascer).
 - `/minspawn8 region strict <id> [true|false]` — liga/desliga o modo estrito da região (veja abaixo).
+
+## Categoria Misc: farm de golem de ferro
+
+Além de hostis e não-hostis, cada região tem uma terceira taxa, **misc** (categoria `MISC` do Minecraft: golem de ferro, aldeão, etc.). Hoje ela controla a **produção de golems de ferro feita pelos aldeões** (quando os aldeões da vila "decidem" criar um golem): ela não usa o spawn natural, por isso hostil/não-hostil não afetavam farms de ferro.
+
+- `100` = vanilla; `300` = cada vez que os aldeões criam um golem, saem 3; `150` = 1 golem + 50% de chance de um 2º; `50` = metade das vezes o golem não nasce; `0` = nenhum.
+- O ponto de referência é o aldeão que gera o golem: ele precisa estar dentro do quadrado (ou da zona de compensação ao redor, que recebe o efeito espelhado igual aos outros grupos).
+- No menu (`/minspawn8 gui`) a linha de ferro na tela da região usa passos de 10% e 100%.
+- Testado: com 8 aldeões prontos, 0% gerou 0 golems, 100% gerou 1, 300% gerou 3 e 500% gerou 5.
+- Os aldeões ainda dependem das regras do jogo (cama, dormir nas últimas 24000 ticks, não ter golem por perto). O mod só multiplica o resultado.
 
 ## Lista de mobs por região
 

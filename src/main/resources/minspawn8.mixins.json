@@ -5,7 +5,8 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "NaturalSpawnerMixin",
-    "NaturalSpawnerRegionMixin"
+    "NaturalSpawnerRegionMixin",
+    "VillagerGolemMixin"
   ],
   "injectors": {
     "defaultRequire": 1

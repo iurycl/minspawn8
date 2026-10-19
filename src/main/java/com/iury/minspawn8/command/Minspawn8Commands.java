@@ -2,6 +2,7 @@ package com.iury.minspawn8.command;
 
 import com.iury.minspawn8.config.Minspawn8Config;
 import com.iury.minspawn8.gui.Minspawn8Menu;
+import com.iury.minspawn8.util.MobTypes;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
@@ -16,7 +17,6 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.MobCategory;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
 import java.util.List;
@@ -67,12 +67,17 @@ public final class Minspawn8Commands {
                                         .executes(ctx -> showRegionPercent(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "id")))
                                         .then(Commands.literal("hostile")
                                                 .then(Commands.argument("percent", DoubleArgumentType.doubleArg(0, 100000))
-                                                        .executes(ctx -> setRegionPercent(ctx.getSource(), true,
+                                                        .executes(ctx -> setRegionPercent(ctx.getSource(), Minspawn8Config.Bucket.HOSTILE,
                                                                 IntegerArgumentType.getInteger(ctx, "id"),
                                                                 DoubleArgumentType.getDouble(ctx, "percent")))))
                                         .then(Commands.literal("nonhostile")
                                                 .then(Commands.argument("percent", DoubleArgumentType.doubleArg(0, 100000))
-                                                        .executes(ctx -> setRegionPercent(ctx.getSource(), false,
+                                                        .executes(ctx -> setRegionPercent(ctx.getSource(), Minspawn8Config.Bucket.NON_HOSTILE,
+                                                                IntegerArgumentType.getInteger(ctx, "id"),
+                                                                DoubleArgumentType.getDouble(ctx, "percent")))))
+                                        .then(Commands.literal("misc")
+                                                .then(Commands.argument("percent", DoubleArgumentType.doubleArg(0, 100000))
+                                                        .executes(ctx -> setRegionPercent(ctx.getSource(), Minspawn8Config.Bucket.MISC,
                                                                 IntegerArgumentType.getInteger(ctx, "id"),
                                                                 DoubleArgumentType.getDouble(ctx, "percent")))))))
                         .then(Commands.literal("remove")
@@ -155,8 +160,8 @@ public final class Minspawn8Commands {
 
     private static int addMob(CommandSourceStack source, int id, Holder.Reference<EntityType<?>> mob) {
         String mobId = mob.key().location().toString();
-        if (mob.value().getCategory() == MobCategory.MISC) {
-            source.sendFailure(Component.literal("[MinSpawn8] " + mobId + " nao e um mob que nasce naturalmente"));
+        if (!MobTypes.isListable(mob.value())) {
+            source.sendFailure(Component.literal("[MinSpawn8] " + mobId + " nao e uma criatura viva (mob)"));
             return 0;
         }
         if (!Minspawn8Config.addAllowedMob(id, mobId)) {
@@ -205,6 +210,7 @@ public final class Minspawn8Commands {
                 "/minspawn8 region percent <id> - mostra os percentuais atuais de uma regiao",
                 "/minspawn8 region percent <id> hostile <percentual> - define a taxa de spawn da regiao para hostis (100 = vanilla)",
                 "/minspawn8 region percent <id> nonhostile <percentual> - define a taxa de spawn da regiao para nao-hostis (100 = vanilla)",
+                "/minspawn8 region percent <id> misc <percentual> - producao de golems de ferro feitos por aldeoes na regiao (100 = vanilla, 300 = 3x, 0 = nenhum)",
                 "/minspawn8 region remove <id> - remove uma regiao",
                 "/minspawn8 region mobs <id> [list] - mostra os mobs permitidos na regiao (lista vazia = todos)",
                 "/minspawn8 region mobs <id> add <mob> - permite so esse mob (e os outros da lista) nascer na regiao",
@@ -248,7 +254,7 @@ public final class Minspawn8Commands {
                     "[MinSpawn8] #" + region.id + " dim=" + region.dimension
                             + " (" + region.x1 + "," + region.y1 + "," + region.z1 + ") -> ("
                             + region.x2 + "," + region.y2 + "," + region.z2 + ") hostil=" + region.percentHostile
-                            + "% nao-hostil=" + region.percentNonHostile + "% mobs="
+                            + "% nao-hostil=" + region.percentNonHostile + "% misc=" + region.percentMisc + "% mobs="
                             + (region.allowedMobs.isEmpty() ? "todos" : String.join(",", region.allowedMobs))
                             + (region.strict ? " ESTRITO" : "")), false);
         }
@@ -260,7 +266,7 @@ public final class Minspawn8Commands {
             if (region.id == id) {
                 source.sendSuccess(() -> Component.literal(
                         "[MinSpawn8] Regiao #" + id + " -> hostil: " + region.percentHostile
-                                + "% | nao-hostil: " + region.percentNonHostile + "%"), false);
+                                + "% | nao-hostil: " + region.percentNonHostile + "% | misc: " + region.percentMisc + "%"), false);
                 return 1;
             }
         }
@@ -268,14 +274,16 @@ public final class Minspawn8Commands {
         return 0;
     }
 
-    private static int setRegionPercent(CommandSourceStack source, boolean hostile, int id, double percent) {
-        boolean ok = hostile
-                ? Minspawn8Config.setRegionPercentHostile(id, percent)
-                : Minspawn8Config.setRegionPercentNonHostile(id, percent);
-        if (ok) {
+    private static int setRegionPercent(CommandSourceStack source, Minspawn8Config.Bucket bucket, int id, double percent) {
+        if (Minspawn8Config.setRegionPercent(id, bucket, percent)) {
+            String label = switch (bucket) {
+                case HOSTILE -> "hostil";
+                case NON_HOSTILE -> "nao-hostil";
+                case MISC -> "misc (golems de aldeao)";
+            };
             source.sendSuccess(() -> Component.literal(
-                    "[MinSpawn8] Regiao #" + id + " (" + (hostile ? "hostil" : "nao-hostil")
-                            + ") agora com " + percent + "% de taxa de spawn"), true);
+                    "[MinSpawn8] Regiao #" + id + " (" + label
+                            + ") agora com " + percent + "% de taxa"), true);
             return 1;
         }
         source.sendFailure(Component.literal("[MinSpawn8] Regiao #" + id + " nao encontrada"));

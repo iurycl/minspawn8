@@ -1,6 +1,7 @@
 package com.iury.minspawn8.gui;
 
 import com.iury.minspawn8.config.Minspawn8Config;
+import com.iury.minspawn8.util.MobTypes;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -44,7 +45,8 @@ public final class Minspawn8Menu extends ChestMenu {
     private enum View { REGIONS, REGION, MOBS, PICKER, DISTANCE }
 
     private enum Filter {
-        ALL("Todos"), HOSTILE("Hostis"), ANIMALS("Animais"), WATER("Aquáticos"), AMBIENT("Ambiente");
+        ALL("Todos"), HOSTILE("Hostis"), ANIMALS("Animais"), WATER("Aquáticos"), AMBIENT("Ambiente"),
+        OTHER("Golems e outros");
 
         final String label;
 
@@ -60,6 +62,7 @@ public final class Minspawn8Menu extends ChestMenu {
                 case WATER -> c == MobCategory.WATER_CREATURE || c == MobCategory.UNDERGROUND_WATER_CREATURE
                         || c == MobCategory.WATER_AMBIENT;
                 case AMBIENT -> c == MobCategory.AMBIENT;
+                case OTHER -> c == MobCategory.MISC;
             };
         }
 
@@ -161,6 +164,7 @@ public final class Minspawn8Menu extends ChestMenu {
                     "De " + r.x1 + ", " + r.y1 + ", " + r.z1,
                     "até " + r.x2 + ", " + r.y2 + ", " + r.z2,
                     "Hostis: " + fmt(r.percentHostile) + "%  |  Não-hostis: " + fmt(r.percentNonHostile) + "%",
+                    "Misc (golem de ferro): " + fmt(r.percentMisc) + "%",
                     "Mobs: " + (mobs.isEmpty() ? "todos" : mobs.size() + " na lista"),
                     "",
                     "Clique para editar"), () -> {
@@ -189,17 +193,18 @@ public final class Minspawn8Menu extends ChestMenu {
                 "De " + r.x1 + ", " + r.y1 + ", " + r.z1,
                 "até " + r.x2 + ", " + r.y2 + ", " + r.z2), null);
 
-        percentRow(10, true, r.percentHostile, "Hostis", Items.ZOMBIE_HEAD);
-        percentRow(19, false, r.percentNonHostile, "Não-hostis", Items.COW_SPAWN_EGG);
+        percentRow(10, Minspawn8Config.Bucket.HOSTILE, r.percentHostile, "Hostis", Items.ZOMBIE_HEAD);
+        percentRow(19, Minspawn8Config.Bucket.NON_HOSTILE, r.percentNonHostile, "Não-hostis", Items.COW_SPAWN_EGG);
+        percentRow(28, Minspawn8Config.Bucket.MISC, r.percentMisc, "Misc (golem de ferro)", Items.IRON_BLOCK);
 
         List<String> mobs = r.allowedMobs;
-        set(31, icon(Items.ZOMBIE_SPAWN_EGG, "Mobs permitidos", ChatFormatting.GOLD,
+        set(40, icon(Items.ZOMBIE_SPAWN_EGG, "Mobs permitidos", ChatFormatting.GOLD,
                 mobs.isEmpty() ? "Todos podem nascer" : "Só nascem " + mobs.size() + " mob(s)",
                 "", "Clique para editar a lista"), () -> go(View.MOBS));
 
         int id = r.id;
         boolean strict = r.strict;
-        set(33, icon(strict ? Items.REDSTONE_TORCH : Items.LEVER,
+        set(42, icon(strict ? Items.REDSTONE_TORCH : Items.LEVER,
                 "Modo estrito: " + (strict ? "LIGADO" : "desligado"),
                 strict ? ChatFormatting.RED : ChatFormatting.GRAY,
                 "Ligado: bloqueia qualquer mob fora da lista,",
@@ -221,17 +226,20 @@ public final class Minspawn8Menu extends ChestMenu {
         }
     }
 
-    private void percentRow(int firstSlot, boolean hostile, double value, String label, Item centerIcon) {
+    private void percentRow(int firstSlot, Minspawn8Config.Bucket bucket, double value, String label, Item centerIcon) {
         int id = regionId;
-        set(firstSlot, button(Items.RED_STAINED_GLASS_PANE, "-10%"), () -> adjustPercent(id, hostile, -10));
-        set(firstSlot + 1, button(Items.RED_STAINED_GLASS_PANE, "-1%"), () -> adjustPercent(id, hostile, -1));
+        boolean misc = bucket == Minspawn8Config.Bucket.MISC;
+        int small = misc ? 10 : 1;
+        int big = misc ? 100 : 10;
+        set(firstSlot, button(Items.RED_STAINED_GLASS_PANE, "-" + big + "%"), () -> adjustPercent(id, bucket, -big));
+        set(firstSlot + 1, button(Items.RED_STAINED_GLASS_PANE, "-" + small + "%"), () -> adjustPercent(id, bucket, -small));
         set(firstSlot + 3, icon(centerIcon, label + ": " + fmt(value) + "%", ChatFormatting.WHITE,
-                "100% = spawn normal do jogo",
-                "Acima de 100% aumenta, abaixo reduz",
+                misc ? "100% = produção normal dos aldeões" : "100% = spawn normal do jogo",
+                misc ? "300% = 3 golems por vez, 0% = nenhum" : "Acima de 100% aumenta, abaixo reduz",
                 "A zona ao redor recebe o efeito espelhado",
-                "", "Clique aqui para voltar a 100%"), () -> setPercent(id, hostile, 100));
-        set(firstSlot + 5, button(Items.LIME_STAINED_GLASS_PANE, "+1%"), () -> adjustPercent(id, hostile, 1));
-        set(firstSlot + 6, button(Items.LIME_STAINED_GLASS_PANE, "+10%"), () -> adjustPercent(id, hostile, 10));
+                "", "Clique aqui para voltar a 100%"), () -> setPercent(id, bucket, 100));
+        set(firstSlot + 5, button(Items.LIME_STAINED_GLASS_PANE, "+" + small + "%"), () -> adjustPercent(id, bucket, small));
+        set(firstSlot + 6, button(Items.LIME_STAINED_GLASS_PANE, "+" + big + "%"), () -> adjustPercent(id, bucket, big));
     }
 
     private void renderMobs() {
@@ -334,20 +342,16 @@ public final class Minspawn8Menu extends ChestMenu {
 
     // ------------------------------------------------------------------ actions
 
-    private static void adjustPercent(int id, boolean hostile, double delta) {
+    private static void adjustPercent(int id, Minspawn8Config.Bucket bucket, double delta) {
         Minspawn8Config.Region r = findRegion(id);
         if (r != null) {
-            setPercent(id, hostile, (hostile ? r.percentHostile : r.percentNonHostile) + delta);
+            setPercent(id, bucket, r.percent(bucket) + delta);
         }
     }
 
-    private static void setPercent(int id, boolean hostile, double value) {
+    private static void setPercent(int id, Minspawn8Config.Bucket bucket, double value) {
         double clamped = Math.max(0, Math.min(100000, Math.round(value * 100.0) / 100.0));
-        if (hostile) {
-            Minspawn8Config.setRegionPercentHostile(id, clamped);
-        } else {
-            Minspawn8Config.setRegionPercentNonHostile(id, clamped);
-        }
+        Minspawn8Config.setRegionPercent(id, bucket, clamped);
     }
 
     private static void adjustDistance(boolean hostile, int delta) {
@@ -387,13 +391,13 @@ public final class Minspawn8Menu extends ChestMenu {
     }
 
     /**
-     * Every mob that can spawn naturally (MISC entities such as villagers, items and projectiles never do).
+     * Every living creature that can be listed, including the MISC ones (iron golem, villager, ...).
      * Mobs with a spawn egg are shown with it; the others get a name tag carrying the mob's name.
      */
     private static List<EntityType<?>> mobTypes(Filter filter) {
         List<EntityType<?>> out = new ArrayList<>();
         for (EntityType<?> type : BuiltInRegistries.ENTITY_TYPE) {
-            if (type.getCategory() != MobCategory.MISC && type.canSummon() && filter.matches(type.getCategory())) {
+            if (MobTypes.isListable(type) && filter.matches(type.getCategory())) {
                 out.add(type);
             }
         }
