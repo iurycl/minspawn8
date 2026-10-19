@@ -39,6 +39,11 @@ public final class Minspawn8Config {
         public List<Region> regions = new ArrayList<>();
     }
 
+    /** The three independent spawn-rate groups a region can tune. */
+    public enum Bucket {
+        HOSTILE, NON_HOSTILE, MISC
+    }
+
     public static final class Region {
         public int id;
         public String dimension;
@@ -46,6 +51,8 @@ public final class Minspawn8Config {
         public int x2, y2, z2;
         public double percentHostile = 100.0;
         public double percentNonHostile = 100.0;
+        /** Rate for MISC-category production that is not natural spawning, e.g. iron golems made by villagers. */
+        public double percentMisc = 100.0;
         /** Entity type ids (e.g. "minecraft:zombie") allowed to spawn naturally inside; empty = no restriction. */
         public List<String> allowedMobs = new ArrayList<>();
         /**
@@ -59,6 +66,14 @@ public final class Minspawn8Config {
          * blocks usually sit at the same Y (e.g. both on the floor), so using Y would make the box
          * one block tall and let almost every spawn escape the mob list.
          */
+        public double percent(Bucket bucket) {
+            return switch (bucket) {
+                case HOSTILE -> percentHostile;
+                case NON_HOSTILE -> percentNonHostile;
+                case MISC -> percentMisc;
+            };
+        }
+
         boolean containsColumn(BlockPos pos) {
             return pos.getX() >= Math.min(x1, x2) && pos.getX() <= Math.max(x1, x2)                    && pos.getZ() >= Math.min(z1, z2) && pos.getZ() <= Math.max(z1, z2);
         }
@@ -176,6 +191,21 @@ public final class Minspawn8Config {
         for (Region region : data.regions) {
             if (region.id == id) {
                 region.percentNonHostile = percent;
+                save();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static synchronized boolean setRegionPercent(int id, Bucket bucket, double percent) {
+        for (Region region : data.regions) {
+            if (region.id == id) {
+                switch (bucket) {
+                    case HOSTILE -> region.percentHostile = percent;
+                    case NON_HOSTILE -> region.percentNonHostile = percent;
+                    case MISC -> region.percentMisc = percent;
+                }
                 save();
                 return true;
             }
@@ -301,6 +331,10 @@ public final class Minspawn8Config {
      * (e.g. +50% inside becomes -50% in the ring, and vice-versa), clamped at 0.
      */
     public static synchronized double getChunkSpawnMultiplier(String dimensionKey, ChunkPos chunkPos, boolean hostile) {
+        return getChunkSpawnMultiplier(dimensionKey, chunkPos, hostile ? Bucket.HOSTILE : Bucket.NON_HOSTILE);
+    }
+
+    public static synchronized double getChunkSpawnMultiplier(String dimensionKey, ChunkPos chunkPos, Bucket bucket) {
         int chunkMinX = chunkPos.getMinBlockX();
         int chunkMaxX = chunkPos.getMaxBlockX();
         int chunkMinZ = chunkPos.getMinBlockZ();
@@ -313,7 +347,7 @@ public final class Minspawn8Config {
             if (!region.dimension.equals(dimensionKey) || !region.chunkInInner(chunkMinX, chunkMaxX, chunkMinZ, chunkMaxZ)) {
                 continue;
             }
-            double percent = hostile ? region.percentHostile : region.percentNonHostile;
+            double percent = region.percent(bucket);
             double multiplier = percent / 100.0;
             double deviation = Math.abs(multiplier - 1.0);
             if (deviation > bestDeviation) {
@@ -329,7 +363,7 @@ public final class Minspawn8Config {
             if (!region.dimension.equals(dimensionKey) || !region.chunkInRing(chunkMinX, chunkMaxX, chunkMinZ, chunkMaxZ)) {
                 continue;
             }
-            double percent = hostile ? region.percentHostile : region.percentNonHostile;
+            double percent = region.percent(bucket);
             double innerMultiplier = percent / 100.0;
             double ringMultiplier = Math.max(0.0, 2.0 - innerMultiplier);
             double deviation = Math.abs(ringMultiplier - 1.0);
