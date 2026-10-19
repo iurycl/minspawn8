@@ -6,7 +6,7 @@ New-Item -ItemType Directory -Force $out | Out-Null
 
 $shots = @(
   @{ In = "6.png"; Name = "gui-regions"; Title = "Regions list"; Sub = "Every region you marked, one click away (/minspawn8 gui)" },
-  @{ In = "7.png"; Name = "gui-region"; Title = "Region editor"; Sub = "Spawn rates, mob list and strict mode in one screen" },
+  @{ In = "10.png"; Name = "gui-region"; Title = "Region editor"; Sub = "Spawn rates, mob list and strict mode in one screen" },
   @{ In = "8.png"; Name = "gui-mob-picker"; Title = "Mob picker"; Sub = "Pick the mobs allowed to spawn with spawn eggs" }
 )
 $scale = 4
